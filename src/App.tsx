@@ -18,6 +18,22 @@ const heroes = {
   bel: { name:'벨카리스', title:'철극의 여왕', icon:'🌹' },
   arc: { name:'아르시온', title:'봉쇄의 거신', icon:'🛡️' }
 }
+
+/** Game assets are provided separately under public/assets/characters. */
+const characterAssets: Partial<Record<HeroId, string>> = {
+  rang: '/assets/characters/irang.webp',
+  bel: '/assets/characters/belcaris.webp',
+}
+function CharacterArtwork({ hero, variant }: { hero: HeroId; variant: 'selection' | 'battle' }) {
+  const [failed, setFailed] = useState(false)
+  const src = characterAssets[hero]
+  return <div className={'character-art character-art--' + variant}>
+    {src && !failed
+      ? <img src={src} alt={heroes[hero].name + ' 전신 캐릭터'} loading={variant === 'selection' ? 'lazy' : 'eager'} draggable={false} onError={() => setFailed(true)} />
+      : <span className="character-art__placeholder" aria-hidden="true">{heroes[hero].icon}</span>}
+  </div>
+}
+
 const rewards: Card[] = [
   {id:'heavy',name:'강타',cost:2,kind:'attack',damage:14,description:'피해 14'},
   {id:'parry',name:'철벽',cost:1,kind:'skill',block:9,description:'방어도 9'},
@@ -114,12 +130,12 @@ function App(){
     if(action==='leave'){setGame(moveRoom(g));return}
     setGame(moveRoom(g))
   }
-  if(!game)return <main className="shell"><header className="mast"><div className="kicker">BREAK THE WALLS, ROLL THE DICE</div><h1>BTWRD <span>ROGUE</span></h1><p>퓨어월드 · 대지 전선 · 첫 번째 원정</p></header><section className="panel"><h2>영웅 선택</h2><div className="heroes">{(Object.keys(heroes) as HeroId[]).map(id=><button key={id} className={'hero '+(id===hero?'active':'')} onClick={()=>setHero(id)}><span className="hero-icon">{heroes[id].icon}</span><b>{heroes[id].name}</b><small>{heroes[id].title}</small></button>)}</div><p className="muted">공통 시작 능력: HP 60 · 에너지 3 · 드로우 5 · 시작 덱 10장</p><button className="primary wide" onClick={()=>{setGame(start(hero));setTarget(0)}}>대지 전선 출정 →</button></section><p className="foot">V0.1 전투 프로토타입 · 영웅 고유 자원 및 정식 카드 세트는 후속 패치 예정</p></main>
+  if(!game)return <main className="shell"><header className="mast"><div className="kicker">BREAK THE WALLS, ROLL THE DICE</div><h1>BTWRD <span>ROGUE</span></h1><p>퓨어월드 · 대지 전선 · 첫 번째 원정</p></header><section className="panel"><h2>영웅 선택</h2><div className="heroes">{(Object.keys(heroes) as HeroId[]).map(id=><button key={id} className={'hero '+(id===hero?'active':'')} onClick={()=>setHero(id)}><CharacterArtwork key={id} hero={id} variant="selection" /><b>{heroes[id].name}</b><small>{heroes[id].title}</small></button>)}</div><p className="muted">공통 시작 능력: HP 60 · 에너지 3 · 드로우 5 · 시작 덱 10장</p><button className="primary wide" onClick={()=>{setGame(start(hero));setTarget(0)}}>대지 전선 출정 →</button></section><p className="foot">V0.1 전투 프로토타입 · 영웅 고유 자원 및 정식 카드 세트는 후속 패치 예정</p></main>
   const current=rooms[game.room-1]
   return <main className="shell"><header className="game-head"><div><div className="kicker">PURE WORLD / EARTH FRONT</div><h1>BTWRD <span>ROGUE</span></h1></div><button className="plain" onClick={()=>{setGame(null);setNotice('')}}><RotateCcw size={15}/> 새 원정</button></header>
     <section className="hud"><span><Heart size={16}/> {game.hp}/{game.maxHp}</span><span><Shield size={16}/> {game.block}</span><span><Zap size={16}/> {game.energy}/3</span><span><Coins size={16}/> {game.gold} G</span></section>
     <section className="map-strip"><Map size={16}/><strong>{game.room}/12 · {current}</strong><span> {game.status==='fight'?'턴 '+game.turn:''}</span></section>
-    {game.status==='fight'&&<><section className="arena"><div className="enemy-line">{game.enemies.filter(e=>e.hp>0).map(e=><button key={e.id} className={'enemy '+(e.id===target?'target':'')} onClick={()=>setTarget(e.id)}><div className="enemy-art">{e.name==='대지룡 기간토스'?'🐉':e.name==='바위 골렘'?'🗿':e.name==='바위 궁수'?'🏹':'🪨'}</div><b>{e.name}</b><div className="life"><div style={{width:Math.max(0,e.hp/e.maxHp*100)+'%'}}/></div><small>HP {Math.max(0,e.hp)}/{e.maxHp} · 방어 {e.block}</small><div className="intent">{e.intent}</div></button>)}</div><div className="fighter"><span>{heroes[game.hero].icon}</span><b>{heroes[game.hero].name}</b><small>공격 대상을 선택하세요</small></div></section><section className="hand-area"><div className="hand-head"><h2>내 손패 <span>{game.hand.length}</span></h2><button className="primary" onClick={()=>setGame(resolveEnemyTurn(game))}>턴 종료 →</button></div><div className="hand">{game.hand.map((c,i)=><button className={'card '+(c.kind==='attack'?'attack':'skill')} key={i} onClick={()=>play(i)} disabled={c.cost>game.energy}><span className="cost">{c.cost}</span><div className="card-symbol">{c.kind==='attack'?<Swords/>:<Shield/>}</div><b>{c.name}</b><small>{c.description}</small></button>)}</div><div className="muted small">뽑을 카드 {game.draw.length} · 버린 카드 {game.discard.length}</div></section></>}
+    {game.status==='fight'&&<><section className="arena"><div className="enemy-line">{game.enemies.filter(e=>e.hp>0).map(e=><button key={e.id} className={'enemy '+(e.id===target?'target':'')} onClick={()=>setTarget(e.id)}><div className="enemy-art">{e.name==='대지룡 기간토스'?'🐉':e.name==='바위 골렘'?'🗿':e.name==='바위 궁수'?'🏹':'🪨'}</div><b>{e.name}</b><div className="life"><div style={{width:Math.max(0,e.hp/e.maxHp*100)+'%'}}/></div><small>HP {Math.max(0,e.hp)}/{e.maxHp} · 방어 {e.block}</small><div className="intent">{e.intent}</div></button>)}</div><div className="fighter"><CharacterArtwork key={game.hero} hero={game.hero} variant="battle" /><div className="fighter-label"><b>{heroes[game.hero].name}</b><small>공격 대상을 선택하세요</small></div></div></section><section className="hand-area"><div className="hand-head"><h2>내 손패 <span>{game.hand.length}</span></h2><button className="primary" onClick={()=>setGame(resolveEnemyTurn(game))}>턴 종료 →</button></div><div className="hand">{game.hand.map((c,i)=><button className={'card '+(c.kind==='attack'?'attack':'skill')} key={i} onClick={()=>play(i)} disabled={c.cost>game.energy}><span className="cost">{c.cost}</span><div className="card-symbol">{c.kind==='attack'?<Swords/>:<Shield/>}</div><b>{c.name}</b><small>{c.description}</small></button>)}</div><div className="muted small">뽑을 카드 {game.draw.length} · 버린 카드 {game.discard.length}</div></section></>}
     {game.status==='reward'&&<section className="panel centre"><h2>⚔️ 전투 승리!</h2><p>골드를 획득했어. 덱에 추가할 카드를 하나 선택하거나 건너뛰자.</p><div className="rewards">{rewards.slice((game.room-1)%3,(game.room-1)%3+3).map(c=><button key={c.id} className="card reward-card" onClick={()=>reward(c)}><span className="cost">{c.cost}</span><b>{c.name}</b><small>{c.description}</small></button>)}</div><button className="plain" onClick={()=>reward(null)}>보상 건너뛰기 →</button></section>}
     {game.status==='choice'&&<section className="panel centre"><h2>{[4,11].includes(game.room)?'🔥 휴식 지점':game.room===7?'🛒 떠돌이 상인':'✨ 대지의 발견'}</h2><p>{current}에 도착했다. 다음 행동을 선택하자.</p><div className="choices">{[4,11].includes(game.room)?<><button onClick={()=>choice('heal')}>HP 18 회복</button><button onClick={()=>choice('upgrade')}>최대 HP +4 (임시 강화)</button></>:game.room===7?<><button onClick={()=>choice('shop')}>무작위 카드 구매 · 50G</button><button onClick={()=>choice('leave')}>상점을 떠난다</button></>:<><button onClick={()=>choice('heal')}>지맥의 기운으로 HP 18 회복</button><button onClick={()=>choice('upgrade')}>지맥 축복 · 최대 HP +4</button></>}</div></section>}
     {game.status==='won'&&<section className="panel centre"><Crown size={45}/><h2>대지 전선 돌파!</h2><p>기간토스를 처치했어! 물의 전선은 다음 개발 단계에서 열릴 예정이야.</p><button className="primary" onClick={()=>setGame(null)}>다시 시작</button></section>}
