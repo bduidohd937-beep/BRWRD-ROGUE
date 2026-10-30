@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Heart, Shield, Zap, Coins, Swords, RotateCcw, Crown, Map, Flame } from 'lucide-react'
 
 type HeroId = 'rang' | 'bel' | 'arc'
 type Card = { id: string; name: string; cost: number; kind: 'attack' | 'skill'; description: string; damage?: number; block?: number; draw?: number }
 type Enemy = { id: number; name: string; hp: number; maxHp: number; block: number; turn: number; intent: string; damage: number; hits: number }
 type Game = { hero: HeroId; hp: number; maxHp: number; block: number; energy: number; turn: number; room: number; gold: number; deck: Card[]; draw: Card[]; discard: Card[]; hand: Card[]; enemies: Enemy[]; status: 'fight'|'reward'|'choice'|'won'|'lost'; log: string[] }
+type CombatFx = { kind: 'card'|'attack'|'enemy-hit'|'hero-hit'|'shield'; target?: number; damage?: number; key: number }
 
 const attack: Card = { id:'strike', name:'일격', cost:1, kind:'attack', damage:6, description:'선택한 적에게 피해 6' }
 const defend: Card = { id:'guard', name:'방어', cost:1, kind:'skill', block:5, description:'방어도 5 획득' }
@@ -103,16 +104,28 @@ function App(){
   const [game,setGame]=useState<Game|null>(null)
   const [target,setTarget]=useState<number>(0)
   const [notice,setNotice]=useState('')
+  const [combatFx,setCombatFx]=useState<CombatFx|null>(null)
+  const fxTimer=useRef<number|undefined>(undefined)
+  const triggerFx=(fx: Omit<CombatFx,'key'>) => {
+    if (fxTimer.current) window.clearTimeout(fxTimer.current)
+    const key=Date.now()+Math.random()
+    setCombatFx({...fx,key})
+    fxTimer.current=window.setTimeout(()=>setCombatFx(null), fx.kind==='attack'?560:430)
+  }
   const say=(s:string)=>{setNotice(s);window.setTimeout(()=>setNotice(''),1800)}
   const play=(index:number)=>{
     if(!game||game.status!=='fight')return
     const card=game.hand[index]
     if(card.cost>game.energy){say('에너지가 부족해!');return}
+    triggerFx({kind:'card'})
     const enemies=game.enemies.map(e=>({...e}))
     if(card.damage){
       const e=enemies.find(x=>x.id===target&&x.hp>0)||enemies.find(x=>x.hp>0)
       if(!e)return
       const absorbed=Math.min(e.block,card.damage);e.block-=absorbed;e.hp-=card.damage-absorbed
+      triggerFx({kind:'attack',target:e.id,damage:card.damage-absorbed})
+    } else if(card.block) {
+      triggerFx({kind:'shield'})
     }
     const newHand=game.hand.filter((_,i)=>i!==index)
     const extra=takeCards(game.draw,game.discard,card.draw||0)
@@ -120,22 +133,22 @@ function App(){
     if(enemies.every(e=>e.hp<=0)){g={...g,status:game.room===12?'won':'reward',gold:game.gold+(game.room===5||game.room===9?45:25),log:['전투 승리!',...g.log]}}
     setGame(g)
   }
-  const reward=(card:Card|null)=>{if(!game)return;const g=card?{...game,deck:[...game.deck,card]}:game;setGame(moveRoom(g));setTarget(0)}
+  const reward=(card:Card|null)=>{if(!game)return;const g=card?{...game,deck:[...game.deck,card]}:game;setGame(moveRoom(g));setTarget(0);setCombatFx(null)}
   const choice=(action:'heal'|'upgrade'|'shop'|'leave')=>{
     if(!game)return
     let g={...game}
     if(action==='heal')g.hp=Math.min(g.maxHp,g.hp+18)
     if(action==='shop'){if(g.gold<50){say('골드 50이 필요해');return}g.gold-=50;g.deck=[...g.deck,rewards[Math.floor(Math.random()*rewards.length)]]}
     if(action==='upgrade') {g.maxHp+=4;g.hp+=4}
-    if(action==='leave'){setGame(moveRoom(g));return}
-    setGame(moveRoom(g))
+    if(action==='leave'){setGame(moveRoom(g));setCombatFx(null);return}
+    setGame(moveRoom(g));setCombatFx(null)
   }
   if(!game)return <main className="shell"><header className="mast"><div className="kicker">BREAK THE WALLS, ROLL THE DICE</div><h1>BTWRD <span>ROGUE</span></h1><p>퓨어월드 · 대지 전선 · 첫 번째 원정</p></header><section className="panel"><h2>영웅 선택</h2><div className="heroes">{(Object.keys(heroes) as HeroId[]).map(id=><button key={id} className={'hero '+(id===hero?'active':'')} onClick={()=>setHero(id)}><CharacterArtwork key={id} hero={id} variant="selection" /><b>{heroes[id].name}</b><small>{heroes[id].title}</small></button>)}</div><p className="muted">공통 시작 능력: HP 60 · 에너지 3 · 드로우 5 · 시작 덱 10장</p><button className="primary wide" onClick={()=>{setGame(start(hero));setTarget(0)}}>대지 전선 출정 →</button></section><p className="foot">V0.1 전투 프로토타입 · 영웅 고유 자원 및 정식 카드 세트는 후속 패치 예정</p></main>
   const current=rooms[game.room-1]
-  return <main className="shell"><header className="game-head"><div><div className="kicker">PURE WORLD / EARTH FRONT</div><h1>BTWRD <span>ROGUE</span></h1></div><button className="plain" onClick={()=>{setGame(null);setNotice('')}}><RotateCcw size={15}/> 새 원정</button></header>
+  return <main className="shell"><header className="game-head"><div><div className="kicker">PURE WORLD / EARTH FRONT</div><h1>BTWRD <span>ROGUE</span></h1></div><button className="plain" onClick={()=>{setGame(null);setNotice('');setCombatFx(null)}}><RotateCcw size={15}/> 새 원정</button></header>
     <section className="hud"><span><Heart size={16}/> {game.hp}/{game.maxHp}</span><span><Shield size={16}/> {game.block}</span><span><Zap size={16}/> {game.energy}/3</span><span><Coins size={16}/> {game.gold} G</span></section>
     <section className="map-strip"><Map size={16}/><strong>{game.room}/12 · {current}</strong><span> {game.status==='fight'?'턴 '+game.turn:''}</span></section>
-    {game.status==='fight'&&<><section className="arena"><div className="enemy-line">{game.enemies.filter(e=>e.hp>0).map(e=><button key={e.id} className={'enemy '+(e.id===target?'target':'')} onClick={()=>setTarget(e.id)}><div className="enemy-art">{e.name==='대지룡 기간토스'?'🐉':e.name==='바위 골렘'?'🗿':e.name==='바위 궁수'?'🏹':'🪨'}</div><b>{e.name}</b><div className="life"><div style={{width:Math.max(0,e.hp/e.maxHp*100)+'%'}}/></div><small>HP {Math.max(0,e.hp)}/{e.maxHp} · 방어 {e.block}</small><div className="intent">{e.intent}</div></button>)}</div><div className="fighter"><CharacterArtwork key={game.hero} hero={game.hero} variant="battle" /><div className="fighter-label"><b>{heroes[game.hero].name}</b><small>공격 대상을 선택하세요</small></div></div></section><section className="hand-area"><div className="hand-head"><h2>내 손패 <span>{game.hand.length}</span></h2><button className="primary" onClick={()=>setGame(resolveEnemyTurn(game))}>턴 종료 →</button></div><div className="hand">{game.hand.map((c,i)=><button className={'card '+(c.kind==='attack'?'attack':'skill')} key={i} onClick={()=>play(i)} disabled={c.cost>game.energy}><span className="cost">{c.cost}</span><div className="card-symbol">{c.kind==='attack'?<Swords/>:<Shield/>}</div><b>{c.name}</b><small>{c.description}</small></button>)}</div><div className="muted small">뽑을 카드 {game.draw.length} · 버린 카드 {game.discard.length}</div></section></>}
+    {game.status==='fight'&&<><section className={'arena '+(combatFx?.kind==='hero-hit'?'arena--hero-hit':'')}><div className="enemy-line">{game.enemies.filter(e=>e.hp>0).map(e=><button key={e.id} className={'enemy '+(e.id===target?'target ':'')+(combatFx?.target===e.id?'enemy--'+combatFx.kind:'')} onClick={()=>setTarget(e.id)}><div className="enemy-art">{e.name==='대지룡 기간토스'?'🐉':e.name==='바위 골렘'?'🗿':e.name==='바위 궁수'?'🏹':'🪨'}</div><b>{e.name}</b><div className="life"><div style={{width:Math.max(0,e.hp/e.maxHp*100)+'%'}}/></div><small>HP {Math.max(0,e.hp)}/{e.maxHp} · 방어 {e.block}</small><div className="intent">{e.intent}</div>{combatFx?.target===e.id&&combatFx.damage!==undefined&&<span className="damage-float" key={combatFx.key}>-{combatFx.damage}</span>}</button>)}</div><div className={'fighter '+(combatFx?.kind==='attack'?'fighter--attack ':'')+(combatFx?.kind==='hero-hit'?'fighter--hit ':'')+(combatFx?.kind==='shield'?'fighter--shield':'')}><CharacterArtwork key={game.hero} hero={game.hero} variant="battle" /><div className="fighter-label"><b>{heroes[game.hero].name}</b><small>공격 대상을 선택하세요</small></div>{combatFx?.kind==='shield'&&<span className="shield-burst" aria-label="방어막 활성화"><Shield/></span>}</div></section><section className="hand-area"><div className="hand-head"><h2>내 손패 <span>{game.hand.length}</span></h2><button className="primary" onClick={()=>{const next=resolveEnemyTurn(game);if(next.hp<game.hp)triggerFx({kind:'hero-hit'});setGame(next)}}>턴 종료 →</button></div><div className="hand">{game.hand.map((c,i)=><button className={'card '+(c.kind==='attack'?'attack':'skill')+(combatFx?.kind==='card'?' card--played':'')} key={i} onClick={()=>play(i)} disabled={c.cost>game.energy}><span className="cost">{c.cost}</span><div className="card-symbol">{c.kind==='attack'?<Swords/>:<Shield/>}</div><b>{c.name}</b><small>{c.description}</small></button>)}</div><div className="muted small">뽑을 카드 {game.draw.length} · 버린 카드 {game.discard.length}</div></section></>}
     {game.status==='reward'&&<section className="panel centre"><h2>⚔️ 전투 승리!</h2><p>골드를 획득했어. 덱에 추가할 카드를 하나 선택하거나 건너뛰자.</p><div className="rewards">{rewards.slice((game.room-1)%3,(game.room-1)%3+3).map(c=><button key={c.id} className="card reward-card" onClick={()=>reward(c)}><span className="cost">{c.cost}</span><b>{c.name}</b><small>{c.description}</small></button>)}</div><button className="plain" onClick={()=>reward(null)}>보상 건너뛰기 →</button></section>}
     {game.status==='choice'&&<section className="panel centre"><h2>{[4,11].includes(game.room)?'🔥 휴식 지점':game.room===7?'🛒 떠돌이 상인':'✨ 대지의 발견'}</h2><p>{current}에 도착했다. 다음 행동을 선택하자.</p><div className="choices">{[4,11].includes(game.room)?<><button onClick={()=>choice('heal')}>HP 18 회복</button><button onClick={()=>choice('upgrade')}>최대 HP +4 (임시 강화)</button></>:game.room===7?<><button onClick={()=>choice('shop')}>무작위 카드 구매 · 50G</button><button onClick={()=>choice('leave')}>상점을 떠난다</button></>:<><button onClick={()=>choice('heal')}>지맥의 기운으로 HP 18 회복</button><button onClick={()=>choice('upgrade')}>지맥 축복 · 최대 HP +4</button></>}</div></section>}
     {game.status==='won'&&<section className="panel centre"><Crown size={45}/><h2>대지 전선 돌파!</h2><p>기간토스를 처치했어! 물의 전선은 다음 개발 단계에서 열릴 예정이야.</p><button className="primary" onClick={()=>setGame(null)}>다시 시작</button></section>}

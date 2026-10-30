@@ -14,6 +14,23 @@
 .character-art--battle { width:100%; height:100%; }
 .character-art--battle img { filter:drop-shadow(0 12px 15px #050910bd) drop-shadow(1px 0px 5px #c1485536); animation:idle-breathe 3.6s ease-in-out infinite; transform-origin:center bottom; }
 .character-art--battle .character-art__placeholder { align-items:flex-end; font-size:60px; padding-bottom:35px; }
+.fighter--attack .character-art--battle img { animation:hero-lunge .48s cubic-bezier(.2,.8,.2,1) both; }
+.fighter--hit .character-art--battle img { animation:hero-hit .38s ease-out both; filter:drop-shadow(0 12px 15px #050910bd) drop-shadow(0 0 14px #ed6678); }
+.enemy--attack { animation:enemy-shake .42s ease-out both; }
+.enemy--enemy-hit { animation:enemy-hit .28s ease-out both; }
+.enemy--shield { animation:enemy-shield .42s ease-out both; }
+.damage-float { position:absolute; z-index:4; top:38px; right:20px; color:#ffcf83; font-size:24px; font-weight:950; text-shadow:0 2px 8px #000; animation:damage-rise .55s ease-out both; pointer-events:none; }
+.card--played { animation:card-play .34s ease-out both; }
+.shield-burst { position:absolute; left:27%; bottom:105px; color:#79caff; filter:drop-shadow(0 0 12px #42bfff); animation:shield-pop .43s ease-out both; }
+.shield-burst svg { width:74px; height:74px; stroke-width:1.3; }
+@keyframes hero-lunge { 0%{transform:translateX(0) scale(1)}45%{transform:translateX(62px) scale(1.03)}100%{transform:translateX(0) scale(1)} }
+@keyframes hero-hit { 0%,100%{transform:translateX(0)}25%{transform:translateX(-14px) rotate(-2deg)}60%{transform:translateX(8px) rotate(1deg)} }
+@keyframes enemy-shake { 0%,100%{transform:translateX(0)}30%{transform:translateX(-8px) rotate(-2deg)}60%{transform:translateX(7px) rotate(2deg)} }
+@keyframes enemy-hit { 0%{filter:brightness(1)}35%{filter:brightness(2.1) saturate(1.5)}100%{filter:brightness(1)} }
+@keyframes enemy-shield { 50%{box-shadow:0 0 0 5px #73c8ff66,0 0 24px #73c8ff99} }
+@keyframes damage-rise { from{opacity:0;transform:translateY(12px) scale(.8)}25%{opacity:1}to{opacity:0;transform:translateY(-30px) scale(1.08)} }
+@keyframes card-play { 50%{transform:translateY(-11px) scale(1.03);border-color:#ffd188;box-shadow:0 0 20px #ffc56f55} }
+@keyframes shield-pop { from{opacity:0;transform:scale(.45)}60%{opacity:1;transform:scale(1.12)}to{opacity:0;transform:scale(1.35)} }
 .fighter-label { position:absolute; display:flex; align-items:center; gap:12px; left:0; bottom:9px; width:max-content; max-width:270px; padding:9px 13px; background:#111c2bdc; border:1px solid #5261769c; border-radius:9px; backdrop-filter:blur(5px); }
 .fighter-label b { font-size:14px; }
 .fighter-label small { font-size:11px; color:#bdcad8; margin:0; }
@@ -29,5 +46,9 @@
  .fighter-label b {font-size:12px}
  .fighter-label small {font-size:10px}
  .character-art--battle .character-art__placeholder {font-size:40px}
+ .fighter--attack .character-art--battle img { animation-name:hero-lunge-mobile }
+ .shield-burst {left:30%;bottom:80px}
+ .damage-float {right:12px;font-size:20px}
 }
-@media (prefers-reduced-motion: reduce) { .character-art--battle img {animation:none} }
+@keyframes hero-lunge-mobile { 0%,100%{transform:translateX(0)}45%{transform:translateX(25px) scale(1.02)} }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after {animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important} }
